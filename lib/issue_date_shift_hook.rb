@@ -32,7 +32,7 @@ class IssueDataShiftHook  < Redmine::Hook::ViewListener
       begin
         issues = Issue.find( 
           :all, 
-          :conditions => "project_id = #{context[:issue].project_id} AND start_date > '#{old_date.to_s}'",
+          :conditions => "project_id = #{context[:issue].project_id} AND assigned_to_id = #{context[:issue].assigned_to_id} AND start_date > '#{old_date.to_s}'",
           :order => "start_date ASC"
         );
 
