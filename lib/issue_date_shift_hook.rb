@@ -15,57 +15,58 @@ class IssueDataShiftHook  < Redmine::Hook::ViewListener
 
     Rails.logger.debug 'inside plugin---------------------------------------'
 
-    present_issue = Issue.find( context[:issue].id)
-    old_date =  present_issue.due_date
+    if ( !context[:params][:issue][:due_date].blank? )
+      present_issue = Issue.find( context[:issue].id)
 
-    new_date = Date.parse ( context[:params][:issue][:due_date] )
+      new_date = Date.parse ( context[:params][:issue][:due_date] )
+      old_date = ( !present_issue.due_date.blank? ) ? present_issue.due_date : new_date
 
-    if old_date === new_date then
-      Rails.logger.debug 'no date changes'
-    else
-      # scan future issues and shit the dates
-      Rails.logger.debug 'issue changed dates'
+      if old_date === new_date then
+        Rails.logger.debug 'no date changes'
+      else
+        # scan future issues and shit the dates
+        Rails.logger.debug 'issue changed dates'
       
-      date_shift_days = new_date - old_date
-      Rails.logger.debug "shifting #{date_shift_days} days from date  #{old_date.to_s} "
+        date_shift_days = new_date - old_date
+        Rails.logger.debug "shifting #{date_shift_days} days from date  #{old_date.to_s} "
 
-      begin
-        issues = Issue.find( 
-          :all, 
-          :conditions => "project_id = #{context[:issue].project_id} AND assigned_to_id = #{context[:issue].assigned_to_id} AND start_date > '#{old_date.to_s}'",
-          :order => "start_date ASC"
-        );
+        begin
+          issues = Issue.find( 
+            :all, 
+            :conditions => "project_id = #{context[:issue].project_id} AND assigned_to_id = #{context[:issue].assigned_to_id} AND start_date > '#{old_date.to_s}'",
+            :order => "start_date ASC"
+          );
 
-        issues.each do | issue2 |
-          Rails.logger.debug "updating #{issue2.id}"
-          issue2.start_date = issue2.start_date + date_shift_days
-          issue2_shift = 0
-          if issue2.start_date.wday == 0 then
-            issue2.start_date = issue2.start_date + 1
-            issue2_shift = 1
-          elsif issue2.start_date.wday == 6 then
-            issue2.start_date = issue2.start_date + 2
-            issue2_shift = 2
-          end 
-          issue2.due_date = issue2.due_date + date_shift_days + issue2_shift
-          if issue2.due_date.wday == 0 then
-            issue2.due_date = issue2.due_date + 1
-            issue2_shift = 1
-          elsif issue2.due_date.wday == 6 then
-            issue2.due_date = issue2.due_date + 2
-            issue2_shift = 2
+          issues.each do | issue2 |
+            Rails.logger.debug "updating #{issue2.id}"
+            issue2.start_date = issue2.start_date + date_shift_days
+            issue2_shift = 0
+            if issue2.start_date.wday == 0 then
+              issue2.start_date = issue2.start_date + 1
+              issue2_shift = 1
+            elsif issue2.start_date.wday == 6 then
+              issue2.start_date = issue2.start_date + 2
+              issue2_shift = 2
+            end 
+            issue2.due_date = issue2.due_date + date_shift_days + issue2_shift
+            if issue2.due_date.wday == 0 then
+              issue2.due_date = issue2.due_date + 1
+              issue2_shift = 1
+            elsif issue2.due_date.wday == 6 then
+              issue2.due_date = issue2.due_date + 2
+              issue2_shift = 2
+            end
+            issue2.save
+            date_shift_days = date_shift_days 
           end
-          issue2.save
-          date_shift_days = date_shift_days 
+
+        rescue ActiveRecord::RecordNotFound
+          # cool, nothing to do
         end
 
-      rescue ActiveRecord::RecordNotFound
-        # cool, nothing to do
+
       end
-
-
     end
-	
 
     Rails.logger.debug 'exiting plugin---------------------------------------'
 
